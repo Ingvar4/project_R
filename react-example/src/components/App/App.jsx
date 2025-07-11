@@ -1,17 +1,18 @@
-import { MyName } from '../MyName/MyName';
+import Header from './Header/Header';
+import HomePage from '../../pages/HomePage';
+import { UserList } from './UserList';
+import { Footer } from './Footer/Footer';
 import './App.css';
 
 function App() {
+  
   return (
-    <>
-      <div>
-        <h1>Привет Мир!</h1>
-        <p>Это первый проект на React</p>
-        <MyName />
-        
-      </div>
-    </>
-  )
+    <main className='app'>
+      <Header />
+      <HomePage />
+      <Footer />
+    </main>
+  );
 }
 
-export default App
+export default App;
