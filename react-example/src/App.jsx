@@ -1,27 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TodoItem } from "./components/TodoItem";
 import { AddTodo } from "./components/AddTodo";
 import ToggleTheme from "./components/ToggleTheme";
 import { getInitialTheme } from "./helpers/getInitialTheme";
 import { toggleTheme } from "./helpers/toggleTheme";
+import DeleteConfirmModal from "./components/DeleteConfirmModal";
+
+const LOCAL_STORAGE_KEY = 'todos';
+const API_URL = 'https://68382f1e2c55e01d184c4d9a.mockapi.io/api/v1/todos2';
 
 function App() {
   const [todos, setTodos] = useState([]);
   const [theme, setTheme] = useState(getInitialTheme());
+  const [deletingId, setDeletingId] = useState(null);
+  const [isDeletingCompleted, setIsDeletingCompleted] = useState(false);
 
-  const onAdd = (text, deadline) => {
+  useEffect(() => {
+    const loadInitialData = async () => {
+      const savedTodos = JSON.parse(
+        localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'
+      );
+
+      setTodos(savedTodos);
+
+      try {
+        const response = await fetch(API_URL);
+
+        if (response.ok) {
+          const serverTodos = await response.json();
+          setTodos(serverTodos);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(serverTodos));
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки данных', error);
+      }
+    };
+    loadInitialData();
+  }, []);
+
+  const onAdd = async (text, deadline) => {
     const newTodo = {
-      id: Date.now(),
+      id: `temp_${Date.now()}`,
       text,
       completed: false,
       createdAt: new Date().toISOString(),
       deadline: deadline || null,
       order: todos.length + 1,
     };
-    setTodos([...todos, newTodo]);
+
+    const updatedTodos = [...todos, newTodo];
+    setTodos(updatedTodos);
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json'},
+        body: JSON.stringify(newTodo),
+      });
+
+      const createdTodo = await response.json();
+
+      const syncedTodos = updatedTodos.map((todo) =>
+        todo.id === newTodo.id ? createdTodo: todo
+      );
+
+      setTodos(syncedTodos);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(syncedTodos));
+    } catch (error) {
+      console.error('Ошибка добавления', error);
+      setTodos(todos);
+    }
   };
 
-  const toggleComplete = (id) => {
+  const toggleComplete = async (id) => {
     const todoToUpdate = todos.find((todo) => todo.id === id);
 
     if (!todoToUpdate) return;
@@ -35,10 +86,65 @@ function App() {
     );
 
     setTodos(updatedTodos);
+
+    try {
+      await fetch(`${API_URL}/${id}`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json'},
+        body: JSON.stringify(updatedTodo), 
+      });
+
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTodo));
+    } catch (error) {
+      console.error('Ошибка обновления', error);
+      setTodos(todos);
+    }
   };
 
-  const onDelete = (id) => {
-    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+  const handleDelete = async (id) => {
+    const previousTodos = todos;
+    const updatedTodos = todos.filter((todo) => todo.id !== id);
+    setTodos(updatedTodos);
+
+    try {
+      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTodos));
+    } catch (error) {
+      console.error('Ошибка удаления', error);
+      setTodos(previousTodos);
+    }
+  };
+
+  const hasCompletedTodos = todos.some((todo) => todo.completed);
+
+  const handleDeleteCompleted = () => {
+    if(!hasCompletedTodos) return;
+    setIsDeletingCompleted(true);
+  };
+
+  const confirmDeleteCompleted = async () => {
+    const originalTodos = [...todos];
+
+    const completedIds = originalTodos.filter((t) => t.completed).map((t) => t.id);
+
+    setTodos(originalTodos.filter((todo) => !todo.completed));
+
+    const failedIds = [];
+
+    for (const id of completedIds) {
+      try {
+        await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      } catch (error) {
+        console.error(`Ошибка удаления задачи ${id}`, error);
+        failedIds.push(id);
+      }
+    }
+    if (failedIds.length > 0) {
+      setTodos(originalTodos.filter(todo => !todo.completed || failedIds.includes(todo.id)))
+    }
+
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(todos));
+    setIsDeletingCompleted(false);
   };
 
   return (
@@ -58,10 +164,38 @@ function App() {
         <AddTodo onAdd={onAdd}/>
         <div className="flex flex-col gap-3">
           {todos.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} onDelete={onDelete} onToggleComplete={toggleComplete}/>
+            <TodoItem 
+              key={todo.id} 
+              todo={todo} 
+              onDelete={() => setDeletingId(todo.id)} 
+              onToggleComplete={toggleComplete}
+            />
           ))}
         </div>
       </div>
+      {deletingId && (
+        <DeleteConfirmModal 
+          onCancel={() => setDeletingId(null)} 
+          onConfirm={() => {
+            handleDelete(deletingId);
+            setDeletingId(null);
+          }} 
+          message='Вы уверены, что хотите удалить эту задачу?'
+        />
+      )}
+
+      {isDeletingCompleted && (
+        <DeleteConfirmModal 
+          onCancel={() => setIsDeletingCompleted(false)} 
+          onConfirm={confirmDeleteCompleted} 
+          message='Вы уверены, что хотите удалить все выполненые задачи?'
+        />
+      )}
+
+      {hasCompletedTodos && (
+        <button onClick={handleDeleteCompleted} className="px-4 py-2 mt-4 bg-red-500 text-white rounded 
+              hover:bg-red-600 transition-colors cursor-pointer">Удалить выполненные</button>
+      )}
     </div>
   );
 }
