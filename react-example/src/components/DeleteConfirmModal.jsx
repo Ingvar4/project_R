@@ -1,4 +1,8 @@
-const DeleteConfirmModal = ({onCancel, onConfirm, message}) => {
+const DeleteConfirmModal = ({onCancel, onConfirm, message, deletingId, isDeletingCompleted}) => {
+  const showModal = deletingId || isDeletingCompleted;
+
+  if (!showModal) return null;
+
   return (
     <>
       <div className="fixed inset-0">
@@ -6,7 +10,7 @@ const DeleteConfirmModal = ({onCancel, onConfirm, message}) => {
         <div className="relative flex h-full items-center justify-center p-4 z-5">
           <div className="p-6 rounded-lg shadow-xl max-w-md w-full 
           mx-4 bg-white text-gray-800 dark:bg-gray-800 dark:text-white">
-            <h3 className="text-xl fond-bold mb-4">Подтверждение удаления</h3>
+            <h3 className="text-xl font-bold mb-4">Подтверждение удаления</h3>
             <p className="mb-6">{message}</p>
             <div className="flex justify-end gap-3">
               <button onClick={onCancel} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 
