@@ -4,7 +4,7 @@ import { AddTodo } from "./AddTodo";
 import TodoList from "./TodoList";
 import TodoFilter from "./TodoFilter";
 
-const MainContent = ({onAdd, todos, handleUpdate, toggleComplete, setDeletingId}) => {
+const MainContent = ({onAdd, todos, handleUpdate, toggleComplete, setDeletingId, onReorder}) => {
   const [filter, setFilter] = useState('all');
 
   const filteredTodos = todos.filter(todo => {
@@ -23,6 +23,7 @@ const MainContent = ({onAdd, todos, handleUpdate, toggleComplete, setDeletingId}
         handleUpdate={handleUpdate} 
         toggleComplete={toggleComplete} 
         setDeletingId={setDeletingId}
+        onReorder={onReorder}
       />
     </div>
   );

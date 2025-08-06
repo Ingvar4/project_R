@@ -2,9 +2,16 @@ import { TodoItem } from "./TodoItem";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-const TodoList = ({todos, handleUpdate, toggleComplete, setDeletingId}) => {
+const TodoList = ({todos, handleUpdate, toggleComplete, setDeletingId, onReorder}) => {
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id !== over.id) {
+      onReorder(active.id, over.id);
+    }
+  };
+
   return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={handleGragEnd}>
+    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext
         items={todos.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
