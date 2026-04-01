@@ -1,12 +1,17 @@
-import './App.css'
-import { Button } from './components/Button'
+
+import './App.css';
+
+
 function App() {
+  
+  const numbers = [1, 2, 3, 4, 5, 6];
+  const listItems = numbers.map((number) => <li key={number.toString()}>{number}</li>);
   return (
     <>
       <div>
         <h1>Заголовок 1</h1>
         <p>это параграф</p>
-        <Button label='Нажми меня'/>
+        <ul>{listItems}</ul>
       </div>
     </>
   )
