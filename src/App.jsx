@@ -1,5 +1,7 @@
- import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import './App.css';
+
+import { RefComponents } from "./components/RefComponent";
 
 function App() {
   
@@ -31,6 +33,7 @@ function App() {
 
       return(
         <>
+          <RefComponents />
           <ul>
             {data.map((item) => (
               <li key={item.id}>{item.title}</li>
