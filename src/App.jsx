@@ -1,48 +1,68 @@
-import { useEffect, useState } from "react";
-import './App.css';
-
-import { RefComponents } from "./components/RefComponent";
+import { useState } from "react";
+import ToggleTheme from "./components/ToggleTheme";
+import { getInitialTheme } from "./helpers/getInitialTheme";
+import { toggleTheme } from "./helpers/toggleTheme";
+import DeleteConfirmModal from "./components/DeleteConfirmModal";
+import { useTodoManagement } from "./hooks/useTodoManagement";
+import DeleteCompletedButton from "./components/DeleteCompletedButton";
+import MainContent from "./components/MainContent";
 
 function App() {
-  
-  const [data, setData] = useState([]);
-      const [count, setCount] = useState(0);
-      const [loading, setIsLoading] = useState(true);
+  const [theme, setTheme] = useState(getInitialTheme());
 
-      useEffect(() => {
-        const fetchData = async() => {
-          try {
-            const response = await fetch(
-              'https://jsonplaceholder.typicode.com/posts'
-            );
-            const result = await response.json();
-            setData(result);
-          } catch (error) {
-            console.error(error.message);
-          } finally {
-            setIsLoading(false);
-          }
-        };
+  const {
+    todos,
+    deletingId,
+    setDeletingId,
+    isDeletingCompleted,
+    setIsDeletingCompleted,
+    onAdd,
+    handleUpdate,
+    toggleComplete,
+    handleDelete,
+    handleDeleteCompleted,
+    confirmDeleteCompleted,
+    hasCompletedTodos,
+  } = useTodoManagement();
 
-        fetchData();
-      }, [count]);
+  return (
+    <div
+      data-theme={theme}
+      className="flex flex-col min-h-screen justify-center items-center bg-page-light dark:bg-page-dark p-6"
+    >
+      <ToggleTheme toggleTheme={() => toggleTheme(setTheme)} theme={theme} />
+      <MainContent
+        onAdd={onAdd}
+        todos={todos}
+        handleUpdate={handleUpdate}
+        toggleComplete={toggleComplete}
+        setDeletingId={setDeletingId}
+      />
+      <DeleteConfirmModal
+        deletingId={deletingId}
+        onCancel={() => setDeletingId(null)}
+        onConfirm={() => {
+          handleDelete(deletingId);
+          setDeletingId(null);
+        }}
+        message="Вы уверены, что хотите удалить эту задачу?"
+      />
 
-      if (loading) {
-        return <div>Загрузка...</div>
-      };
+      <DeleteConfirmModal
+        isDeletingCompleted={isDeletingCompleted}
+        onCancel={() => setIsDeletingCompleted(false)}
+        onConfirm={confirmDeleteCompleted}
+        message={`Вы уверены, что хотите удалить все выполненные задачи (${
+          todos.filter((todo) => todo.completed).length
+        })?`}
+      />
 
-      return(
-        <>
-          <RefComponents />
-          <ul>
-            {data.map((item) => (
-              <li key={item.id}>{item.title}</li>
-            ))}
-          </ul>
-          <p>{count}</p>
-          <button onClick={() => setCount(count + 1)}>Увеличить</button>
-        </>
-  )
+      <DeleteCompletedButton
+        onClick={handleDeleteCompleted}
+        hasCompletedTodos={hasCompletedTodos}
+      />
+    </div>
+  );
 }
 
-export default App
+export default App;

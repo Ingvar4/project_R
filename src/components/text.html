@@ -1,0 +1,827 @@
+<!-- &lt; -->
+<!-- <img src="./assets/images/1.png" alt="1"> -->
+<!-- <a href="article-react.html">К темам</a> -->
+<details>
+  <summary></summary>
+<pre>
+  <code class="lang-js">
+    
+  </code>
+</pre>
+</details>
+
+<a href="article-react.html">К темам</a>
+
+<p>рефакторинг</p>
+
+<p>добавление функционала изменения задачи по двойному клику</p>
+
+<details>
+  <summary>main.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import { StrictMode } from 'react'
+    import { createRoot } from 'react-dom/client'
+    import './main.css'
+    import App from './App.jsx'
+
+    createRoot(document.getElementById('root')).render(
+      &lt;StrictMode>
+        &lt;App />
+      &lt;/StrictMode>,
+    )
+  </code>
+</pre>
+</details>
+
+<details>
+  <summary>main.css</summary>
+<pre>
+  <code class="lang-js">
+    @import "tailwindcss";
+
+    @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+    @theme {
+      --color-btn-dark: #00008b;
+      --color-btn-dark-hv: #0000cd;
+      --color-btn-light: #87ceeb;
+      --color-btn-light-hv: #add8e6;
+      --color-txt-dark: #dedede;
+      --color-txt-light: #333;
+      --color-page-dark: #323232;
+      --color-page-light: #f3f3f3;
+    }
+  </code>
+</pre>
+</details>
+
+<details>
+  <summary>App.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import { useState } from "react";
+    import ToggleTheme from "./components/ToggleTheme";
+    import { getInitialTheme } from "./helpers/getInitialTheme";
+    import { toggleTheme } from "./helpers/toggleTheme";
+    import DeleteConfirmModal from "./components/DeleteConfirmModal";
+    import { useTodoManagement } from "./hooks/useTodoManagement";
+    import DeleteCompletedButton from "./components/DeleteCompletedButton";
+    import MainContent from "./components/MainContent";
+
+    function App() {
+      const [theme, setTheme] = useState(getInitialTheme());
+
+      const {
+        todos,
+        deletingId,
+        setDeletingId,
+        isDeletingCompleted,
+        setIsDeletingCompleted,
+        onAdd,
+        handleUpdate,
+        toggleComplete,
+        handleDelete,
+        handleDeleteCompleted,
+        confirmDeleteCompleted,
+        hasCompletedTodos,
+      } = useTodoManagement();
+
+      return (
+        &lt;div
+          data-theme={theme}
+          className="flex flex-col min-h-screen justify-center items-center bg-page-light dark:bg-page-dark p-6"
+        >
+          &lt;ToggleTheme toggleTheme={() => toggleTheme(setTheme)} theme={theme} />
+          &lt;MainContent
+            onAdd={onAdd}
+            todos={todos}
+            handleUpdate={handleUpdate}
+            toggleComplete={toggleComplete}
+            setDeletingId={setDeletingId}
+          />
+          &lt;DeleteConfirmModal
+            deletingId={deletingId}
+            onCancel={() => setDeletingId(null)}
+            onConfirm={() => {
+              handleDelete(deletingId);
+              setDeletingId(null);
+            }}
+            message="Вы уверены, что хотите удалить эту задачу?"
+          />
+
+          &lt;DeleteConfirmModal
+            isDeletingCompleted={isDeletingCompleted}
+            onCancel={() => setIsDeletingCompleted(false)}
+            onConfirm={confirmDeleteCompleted}
+            message={`Вы уверены, что хотите удалить все выполненные задачи (${
+              todos.filter((todo) => todo.completed).length
+            })?`}
+          />
+
+          &lt;DeleteCompletedButton
+            onClick={handleDeleteCompleted}
+            hasCompletedTodos={hasCompletedTodos}
+          />
+        &lt;/div>
+      );
+    }
+
+    export default App;
+  </code>
+</pre>
+</details>
+
+<ul>
+  <li>helpers
+    <ul>
+      <li>
+        <details>
+  <summary>dateUtils.js</summary>
+<pre>
+  <code class="lang-js">
+    const formatDateTime = (dateString) => {
+      return new Date(dateString).toLocaleString("ru-RU", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }) ;
+    }
+    
+    export default formatDateTime;
+  </code>
+</pre>
+</details>
+      </li>
+      <li>
+        <details>
+  <summary>getInitialTheme.js</summary>
+<pre>
+  <code class="lang-js">
+    export function getInitialTheme() {
+      const savedTheme = localStorage.getItem("theme");
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+
+      if (savedTheme) {
+        return savedTheme;
+      } else if (prefersDark) {
+        return "dark";
+      } else {
+        const hours = new Date().getHours();
+        return hours &lt; 6 || hours >= 21 ? "dark" : "light";
+      }
+    }
+  </code>
+</pre>
+</details>
+      </li>
+      <li>
+        <details>
+  <summary>toggleTheme.js</summary>
+<pre>
+  <code class="lang-js">
+    export const toggleTheme = (setTheme) => {
+      setTheme((prevTheme) => {
+        const newTheme = prevTheme === "light" ? "dark" : "light";
+        localStorage.setItem("theme", newTheme);
+        return newTheme;
+      });
+    };
+  </code>
+</pre>
+</details>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<ul>
+  <li>components
+    <ul>
+      <li>
+        <details>
+  <summary>AddTodo.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import { useState } from "react";
+    import DeadlineBlock from "./DeadlineBlock";
+    import PlusIcon from "./PlusIcon";
+
+    export function AddTodo({ onAdd }) {
+      const [text, setText] = useState("");
+      const [deadline, setDeadline] = useState("");
+      const [showDeadlineInput, setShowDeadlineInput] = useState(false);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (text.trim()) {
+          onAdd(text, deadline);
+          setText("");
+          setDeadline("");
+          setShowDeadlineInput("");
+        }
+      };
+
+      return (
+        &lt;form onSubmit={handleSubmit} className="mb-6">
+          &lt;div className="flex items-center bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-blue-500">
+            &lt;input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Добавить задачу..."
+              className="flex-1 p-3 text-gray-700 dark:bg-page-dark dark:text-txt-dark outline-none placeholder-gray-400"
+            />
+            &lt;button
+              type="submit"
+              className="p-3 bg-btn-light hover:bg-btn-light-hv text-white dark:bg-btn-dark hover:dark:bg-btn-dark-hv transition-colors duration-300 cursor-pointer"
+            >
+              &lt;PlusIcon />
+            &lt;/button>
+          &lt;/div>
+          &lt;DeadlineBlock
+            showDeadlineInput={showDeadlineInput}
+            deadline={deadline}
+            setDeadline={setDeadline}
+            setShowDeadlineInput={setShowDeadlineInput}
+          />
+        &lt;/form>
+      );
+    }
+  </code>
+</pre>
+</details>
+      </li>
+      <li>
+        <details>
+  <summary>CheckboxButton.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const CheckboxButton = ({ completed, onClick }) => {
+      return (
+        &lt;button
+          onClick={onClick}
+          className={`p-1 rounded-full border-2 cursor-pointer ${
+            completed
+              ? "border-green-500 bg-green-500"
+              : "border-gray-300 hover:border-gray-400"
+          } transition-colors duration-300`}
+        >
+          &lt;svg
+            xmlns="http://www.w3.org/2000/svg"
+            className={`h-4 w-4 ${completed ? "text-white" : "text-transparent"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            &lt;path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          &lt;/svg>
+        &lt;/button>
+      );
+    };
+
+    export default CheckboxButton;
+  </code>
+</pre>
+</details>
+      </li>
+      <li>
+        <details>
+  <summary>CheckedIcon.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const CheckedIcon = () => {
+      return (
+        &lt;svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          className="w-4 h-4 xs:w-5 xs:h-5"
+        >
+          &lt;path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2.5}
+            d="M5 10l4 4 8-8"
+          />
+        &lt;/svg>
+      );
+    };
+
+    export default CheckedIcon;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>DeadlineBlock.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const DeadlineBlock = ({
+      showDeadlineInput,
+      deadline,
+      setDeadline,
+      setShowDeadlineInput,
+    }) => {
+      return (
+        &lt;>
+          {showDeadlineInput && (
+            &lt;div className="flex items-center gap-2 text-gray-500  mt-2">
+              &lt;input
+                type="datetime-local"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="p-2 border border-blue-700 rounded flex-1"
+              />
+              &lt;button
+                type="button"
+                onClick={() => {
+                  setDeadline("");
+                  setShowDeadlineInput(false);
+                }}
+                className="p-2 hover:text-gray-700 cursor-pointer"
+              >
+                Отмена
+              &lt;/button>
+            &lt;/div>
+          )}
+          {!showDeadlineInput && (
+            &lt;button
+              type="button"
+              onClick={() => {
+                setShowDeadlineInput(true);
+              }}
+              className="self-start text-sm text-blue-500 hover:text-blue-700"
+            >
+              + Добавить дедлайн
+            &lt;/button>
+          )}
+        &lt;/>
+      );
+    };
+
+    export default DeadlineBlock;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>DeleteButton.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const DeleteButton = ({ onClick }) => {
+      return (
+        &lt;button
+          onClick={onClick}
+          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all duration-300 cursor-pointer"
+        >
+          &lt;svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            &lt;path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          &lt;/svg>
+        &lt;/button>
+      );
+    };
+
+    export default DeleteButton;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>DeleteCompletedButton.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const DeleteCompletedButton = ({ hasCompletedTodos, onClick }) => {
+      if (!hasCompletedTodos) return null;
+
+      return (
+        &lt;button
+          onClick={onClick}
+          className="px-4 py-2 mt-4 bg-red-500 text-white rounded hover:bg-red-600 transition-colors cursor-pointer"
+        >
+          Удалить выполненные
+        &lt;/button>
+      );
+    };
+
+    export default DeleteCompletedButton;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>DeleteConfirmModal.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const DeleteConfirmModal = ({
+      onCancel,
+      onConfirm,
+      message,
+      deletingId,
+      isDeletingCompleted,
+    }) => {
+      const showModal = deletingId || isDeletingCompleted;
+      if (!showModal) return null;
+      return (
+        &lt;>
+          &lt;div className="fixed inset-0">
+            &lt;div className="absolute inset-0 bg-black/50 z-4 backdrop-blur-xs">&lt;/div>
+            &lt;div className="relative flex h-full items-center justify-center p-4 z-5">
+              &lt;div className="p-6 rounded-lg shadow-xl max-w-md w-full mx-4 bg-white text-gray-800 dark:bg-gray-800 dark:text-white">
+                &lt;h3 className="text-xl font-bold mb-4">Подтверждение удаления&lt;/h3>
+                &lt;p className="mb-6">{message}&lt;/p>
+                &lt;div className="flex justify-end gap-3">
+                  &lt;button
+                    onClick={onCancel}
+                    className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                  >
+                    Отмена
+                  &lt;/button>
+                  &lt;button
+                    onClick={onConfirm}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors cursor-pointer"
+                  >
+                    Удалить
+                  &lt;/button>
+                &lt;/div>
+              &lt;/div>
+            &lt;/div>
+          &lt;/div>
+        &lt;/>
+      );
+    };
+
+    export default DeleteConfirmModal;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>Header.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const Header = () => {
+      return (
+        &lt;h1 className="text-4xl font-bold text-center text-gray-800 dark:text-white mb-8">
+          &lt;span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
+            My Todo App
+          &lt;/span>
+        &lt;/h1>
+      );
+    };
+
+    export default Header;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>MainContent.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import { useState } from "react";
+    import Header from "./Header";
+    import { AddTodo } from "./AddTodo";
+    import TodoList from "./TodoList";
+    import TodoFilter from "./TodoFilter";
+
+    const MainContent = ({
+      onAdd,
+      todos,
+      handleUpdate,
+      toggleComplete,
+      setDeletingId,
+    }) => {
+      const [filter, setFilter] = useState("all");
+
+      const filteredTodos = todos.filter((todo) => {
+        if (filter === "completed") return todo.completed;
+        if (filter === "active") return !todo.completed;
+        return true;
+      });
+      return (
+        &lt;div className="mx-auto flex flex-col gap-3">
+          &lt;Header />
+          &lt;AddTodo onAdd={onAdd} />
+          &lt;TodoFilter filter={filter} setFilter={setFilter} />
+          &lt;TodoList
+            todos={filteredTodos}
+            handleUpdate={handleUpdate}
+            toggleComplete={toggleComplete}
+            setDeletingId={setDeletingId}
+          />
+        &lt;/div>
+      );
+    };
+
+    export default MainContent;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>PlusIcon.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const PlusIcon = () => {
+      return (
+        &lt;svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          &lt;path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 4v16m8-8H4"
+          />
+        &lt;/svg>
+      );
+    };
+
+    export default PlusIcon;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>TodoEditForm.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import CheckedIcon from "./CheckedIcon";
+
+    const TodoEditForm = ({
+      editText,
+      setEditText,
+      editDeadline,
+      innerRef,
+      setEditDeadline,
+      onSave,
+    }) => {
+      return (
+        &lt;div className="flex flex-col w-full gap-2 items-stretch" ref={innerRef}>
+          &lt;input
+            type="text"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onSave()}
+            className="w-full px-2 py-1 border-2 border-blue-500 rounded text-sm text-gray-700 dark:text-gray-300"
+          />
+
+          &lt;div className="flex flex-col sm:flex-row gap-2 w-full">
+            &lt;input
+              type="datetime-local"
+              value={editDeadline}
+              onChange={(e) => setEditDeadline(e.target.value)}
+              className="w-full sm:flex-1 px-2 py-1 border-2 border-blue-500 rounded text-sm text-gray-700 dark:text-gray-300"
+            />
+            &lt;button
+              onClick={onSave}
+              className="flex items-center justify-center gap-1 px-2 py-1 sm:px-3 sm:py-1 text-green-600 hover:text-green-800 cursor-pointer bg-white border-2 border-green-500 rounded hover:bg-green-50 transition-color text-sm sm:text-base"
+            >
+              &lt;CheckedIcon />
+              &lt;span className="sm:hidden">OK&lt;/span>
+              &lt;span className="hidden sm:inline">Готово&lt;/span>
+            &lt;/button>
+          &lt;/div>
+        &lt;/div>
+      );
+    };
+
+    export default TodoEditForm;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>TodoFilter.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const TodoFilter = ({ filter, setFilter }) => {
+        const buttonClasses = (currentFilter) => 
+            `px-4 py-2 rounded transition-color cursor-pointer ${
+        filter === currentFilter ? 'bg-blue-500 text-white' : 'bg-blue-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+        }`
+      return (
+        &lt;div className="flex flex-col gap-2 mb-4">
+          &lt;button onClick={() => setFilter("all")} className={buttonClasses('all')}>Все&lt;/button>
+          &lt;button onClick={() => setFilter("active")} className={buttonClasses('active')}>Не выполненные&lt;/button>
+          &lt;button onClick={() => setFilter("completed")} className={buttonClasses('completed')}>Выполненные&lt;/button>
+        &lt;/div>
+      );
+    };
+
+    export default TodoFilter;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>TodoItem.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import { useEffect, useRef, useState, useCallback } from "react";
+    import CheckboxButton from "./CheckboxButton";
+    import TodoEditForm from "./TodoEditForm";
+    import TodoTextDisplay from "./TodoTextDisplay";
+    import DeleteButton from "./DeleteButton";
+
+    export const TodoItem = ({ todo, onDelete, onToggleComplete, onUpdate }) => {
+      const [isEditing, setIsEditing] = useState(false);
+      const [editText, setEditText] = useState(todo.text);
+      const [editDeadline, setEditDeadline] = useState(todo.deadline || "");
+      const editFormRef = useRef(null);
+
+      const handleToggle = () => {
+        onToggleComplete(todo.id);
+      };
+
+      const handleSave = useCallback(() => {
+        if (editText.trim()) {
+          onUpdate(todo.id, editText, editDeadline);
+        }
+        setIsEditing(false);
+      }, [editText, editDeadline, todo.id, onUpdate]);
+
+      useEffect(() => {
+        const handleClickOutside = (e) => {
+          if (editFormRef.current && !editFormRef.current.contains(e.target)) {
+            handleSave();
+          }
+        };
+
+        if (isEditing) {
+          document.addEventListener("click", handleClickOutside);
+        }
+
+        return () => {
+          document.removeEventListener("click", handleClickOutside);
+        };
+      }, [isEditing, handleSave]);
+
+      return (
+        &lt;div
+          className="group flex items-center 
+        justify-between p-4 gap-3 bg-white dark:bg-page-dark rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100"
+        >
+          &lt;div className="flex items-center gap-3">
+            &lt;CheckboxButton completed={todo.completed} onClick={handleToggle} />
+            {isEditing ? (
+              &lt;TodoEditForm
+                editText={editText}
+                setEditText={setEditText}
+                editDeadline={editDeadline}
+                setEditDeadline={setEditDeadline}
+                innerRef={editFormRef}
+                onSave={handleSave}
+              />
+            ) : (
+              &lt;TodoTextDisplay todo={todo} setIsEditing={setIsEditing} />
+            )}
+          &lt;/div>
+          &lt;DeleteButton onClick={() => onDelete(todo.id)} />
+        &lt;/div>
+      );
+    };
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>TodoList.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import { TodoItem } from "./TodoItem";
+
+    const TodoList = ({ todos, handleUpdate, toggleComplete, setDeletingId }) => {
+      return (
+        &lt;div className="flex flex-col gap-3">
+          {todos.map((todo) => (
+            &lt;TodoItem
+              key={todo.id}
+              todo={todo}
+              onDelete={() => setDeletingId(todo.id)}
+              onToggleComplete={toggleComplete}
+              onUpdate={handleUpdate}
+            />
+          ))}
+        &lt;/div>
+      );
+    };
+
+    export default TodoList;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>TodoTextDisplay.jsx</summary>
+<pre>
+  <code class="lang-js">
+    import formatDateTime from "../helpers/dateUtils";
+
+    const TodoTextDisplay = ({ todo, setIsEditing }) => {
+      return (
+        &lt;div
+          className="flex flex-col cursor-pointer"
+          onDoubleClick={() => setIsEditing(true)}
+        >
+          &lt;span
+            className={`text-1 ${
+              todo.completed
+                ? "line-through text-gray-400"
+                : "text-gray-700 dark:text-gray-300"
+            }`}
+          >
+            {todo.text}
+          &lt;/span>
+          &lt;span className="text-xs text-gray-400">
+            Создано: {formatDateTime(todo.createdAt)}
+          &lt;/span>
+          {todo.deadline && (
+            &lt;span
+              className={`text-xs ${
+                todo.completed
+                  ? "text-gray-400"
+                  : new Date(todo.deadline) &lt; new Date()
+                  ? "text-red-500"
+                  : "text-gray-500"
+              }`}
+            >
+              Сделать до: {formatDateTime(todo.deadline)}
+            &lt;/span>
+          )}
+        &lt;/div>
+      );
+    };
+
+    export default TodoTextDisplay;
+  </code>
+</pre>
+        </details>
+      </li>
+      <li>
+        <details>
+  <summary>ToggleTheme.jsx</summary>
+<pre>
+  <code class="lang-js">
+    const ToggleTheme = ({ toggleTheme, theme }) => {
+      return (
+        &lt;div className="mb-6">
+          &lt;div className="flex items-center">
+            &lt;button className="relative cursor-pointer" onClick={toggleTheme}>
+              &lt;div className="w-14 h-7 rounded-full shadow-inner transition-colors duration-300 bg-gray-300 dark:bg-btn-dark">&lt;/div>
+              &lt;div className="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 translate-x-0 dark:translate-x-7">&lt;/div>
+            &lt;/button>
+            &lt;span className="ml-3 text-gray-700 dark:text-gray-300 font-medium">
+              {theme === "light" ? "Светлая" : "Темная"}
+            &lt;/span>
+          &lt;/div>
+        &lt;/div>
+      );
+    };
+
+    export default ToggleTheme;
+  </code>
+</pre>
+        </details>
+      </li>
+    </ul>
+  </li>
+</ul>
